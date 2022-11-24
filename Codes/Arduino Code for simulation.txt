@@ -1,0 +1,69 @@
+#include <SoftwareSerial.h>
+
+SoftwareSerial SIM900(0, 1); // RX,TX for Arduino and for the module it's TXD RXD, they should be inverted
+
+const int waterSens = A0;//define water sensor to pin A0
+bool button_State; //Button state
+String textForSMS;
+
+// cell numbers to which we want to send the security alert message
+String f1001 = "+8801675160638";
+//String f1002 = "+8801988912543";
+
+void setup()
+{
+  pinMode(waterSens, INPUT); //set water sensor as an input         
+  pinMode(13, OUTPUT); //LED builtin output pin 13
+  SIM900.begin(9600);   //Module baude rate, this is on max, it depends on the version
+  Serial.begin(9600);   
+  delay(1000);
+}
+ 
+void loop()
+{
+  
+  textForSMS =  "WARNING!The Water Level is High";
+ 
+  int sensorValue = digitalRead(waterSens);//read the water sensor value
+  Serial.println(sensorValue);
+  digitalWrite(13, LOW);
+  if (sensorValue == 1) {
+    digitalWrite(13, HIGH);   // turn the LED on (HIGH is the voltage level)
+    delay(1000);                       // wait for a second
+    Serial.println("Water sensor triggered!");   //Shows this message on the serial monitor
+    delay(200);                         //Small delay to avoid detecting the button press many times
+    
+    sendsms(textForSMS, f1001);         //And this function is called
+    //sendsms(textForSMS, f1002);
+    delay(1000);
+  }
+  else{
+    digitalWrite(13, LOW);    // turn the LED off by making the voltage LOW
+    delay(1000); 
+  }
+ 
+  if (SIM900.available()){            //Displays on the serial monitor if there's a communication from the module
+    Serial.write(SIM900.read()); 
+  }
+}
+ 
+void sendsms(String message, String number) {
+  Serial.println("Sending message...");
+  String mnumber = "AT + CMGS = \""+number+"\""; 
+  SIM900.print("AT+CMGF=1\r");                   
+  delay(1000);
+  SIM900.println(mnumber);  // recipient's mobile number, in international format
+ 
+  delay(1000);
+  SIM900.println(message);                         // message to send
+  Serial.println(message);
+  delay(1000);
+  SIM900.println((char)26);                        // End AT command with a ^Z, ASCII code 26
+  delay(1000); 
+  
+  SIM900.println();
+  delay(100);                                     // give module time to send SMS
+  Serial.println("Message sent!");
+ // SIM900power();  
+}
+ 
