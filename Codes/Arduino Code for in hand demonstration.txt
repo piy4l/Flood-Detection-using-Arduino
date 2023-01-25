@@ -1,17 +1,22 @@
 #include <SoftwareSerial.h>
 
 const int waterSens = A0;//define water sensor to pin A0
+const int rainSens = A1;
 const int outputSens = 9;//define speaker to pin 9
-int SensorValue;//create sensor data variable
-
+int waterFlowSensorPin = 2;
+volatile long pulse = 0;
+float volume = 0;
+int sensorValue = 0;
+int rainSensorValue = 0;
 SoftwareSerial SIM900(9, 8); // gsm module connected here -- 9 = input, 8 = output
 String textForSMS;
  
 // cell numbers to which we want to send the security alert message
-String f1001 = "+8801675160638";
+String f1001 = "+8801988912542";
 //String f1002 = "+8801988912543";
 
 void setup() {
+  pinMode(waterFlowSensorPin, INPUT);
   pinMode(outputSens, OUTPUT);//set outputSens as an output
   pinMode(waterSens, INPUT); //set water sensor as an input         
   pinMode(LED_BUILTIN, OUTPUT); //LED builtin output pin 13
@@ -19,26 +24,39 @@ void setup() {
   Serial.begin(9600);
   SIM900.begin(9600); // original 19200. while enter 9600 for sim900A
   Serial.println(" logging time completed!"); 
+  attachInterrupt(digitalPinToInterrupt(waterFlowSensorPin), increase, RISING);
   delay(5000); // wait for 5 seconds
 }
 
 void loop() {
-  int sensorValue = analogRead(waterSens);//read the water sensor value
+  Serial.println(volume);
+  sensorValue = analogRead(waterSens);//read the water sensor value
+  rainSensorValue = analogRead(rainSens);
   if (sensorValue >= 50) {
-    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-    delay(1000);                       // wait for a second
-         
-    textForSMS =  "WARNING!The Water Level is High";  
-    sendsms(textForSMS, f1001); // you can use a variable of the type String
-     //sendsms(textForSMS, f1002);
-    //Serial.println(textForSMS);
-    //Serial.println("message sent."); 
-    delay(10000);
+    volume = 3.663 * pulse;
+    Serial.print("Volume:");
+    Serial.print(volume);
+    Serial.println("");
+    Serial.print("Rain Sensor:");
+    Serial.print(rainSensorValue);
+    Serial.println("");
+    if(volume > 70 && rainSensorValue < 900){
+      digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+      delay(1000);                       // wait for a second
+      textForSMS =  "WARNING!The Water Level is High";  
+      sendsms(textForSMS, f1001); // you can use a variable of the type String
+       //sendsms(textForSMS, f1002);
+      //Serial.println(textForSMS);
+      //Serial.println("message sent."); 
+      delay(10000);
+    }
   }
   else{
+    pulse = 0;
     digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
     delay(1000); 
   }
+  delay(1000);
 }
  
 void sendsms(String message, String number) {
@@ -56,3 +74,8 @@ void sendsms(String message, String number) {
   delay(100);                                     // give module time to send SMS
  // SIM900power();  
 }
+
+void increase(){
+  pulse++;
+}
+
